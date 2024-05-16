@@ -43,8 +43,8 @@ class Odometry(Node):
         )
 
         ############ ROBOT CONSTANTS ################ 
-        self.r=0.14 #wheel radius for our simulated robot[m] 
-        self.L=0.52 #wheel separation for our simulated robot [m] 
+        self.r=0.05 #wheel radius for our simulated robot[m] 
+        self.L=0.19 #wheel separation for our simulated robot [m] 
         self.wl = 0.0 #Left wheel speed [rad/s] 
         self.wr = 0.0 #Right wheel speed [rad/s] 
         self.x = 0.0 #Robot position in x-axis [m] 

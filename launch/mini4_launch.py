@@ -15,14 +15,13 @@ def generate_launch_description():
         package= 'minichallenge4_bueno',
         executable= 'controller',
         output = 'screen',
-        parameters= [{'use_sim_time':True}, {config}]
+        parameters= [{config}]
     )
 
     traffic_node = Node(
         package= 'minichallenge4_bueno',
         executable= 'traffic_lights',
         output = 'screen',
-        parameters= [{'use_sim_time':True}]
     )
 
     ld = LaunchDescription([generation_node, traffic_node])

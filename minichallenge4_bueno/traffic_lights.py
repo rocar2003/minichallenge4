@@ -23,7 +23,7 @@ class TrafficLights(Node):
         self.valid_img = False
         self.bridge = CvBridge()
 
-        self.sub = self.create_subscription(Image, '/robot/camera1/image_raw', self.camera_callback, qos_profile_sensor_data)
+        self.sub = self.create_subscription(Image, '/video_source/raw', self.camera_callback, qos_profile_sensor_data)
         self.sub_vel = self.create_subscription(Twist, 'cmd_vel_aux', self.vel_cb, 10)
         self.pub = self.create_publisher(Image, '/img_processing/color', 10)
         self.pub_status = self.create_publisher(String, '/status', 10)
