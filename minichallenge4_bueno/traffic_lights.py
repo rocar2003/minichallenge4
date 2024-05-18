@@ -104,7 +104,7 @@ class TrafficLights(Node):
                 if circles is not None:
                     circles = np.round(circles[0, :]).astype("int")
                     for (x, y, r) in circles:
-                        cv2.circle(circle_mask, (x, y), r, 255, -1)
+                        cv2.circle(circle_mask, (x, y), r, 255, 2)
 
                 self.status.data = rgb
                 self.pub_status.publish(self.status)
