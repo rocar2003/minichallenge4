@@ -34,32 +34,32 @@ class TrafficLights(Node):
         self.get_logger().info('CV Node started')
 
         self.status = String()
-
         self.vel = Twist()
 
-    def count_color(self, red, yellow, green):
-        red_pixels = cv2.countNonZero(red)
-        yellow_pixels = cv2.countNonZero(yellow)
-        green_pixels = cv2.countNonZero(green)
+    def count_color_in_circles(self, hsv_img, circles):
+        mask = np.zeros(hsv_img.shape[:2], dtype=np.uint8)
 
-        if red_pixels > yellow_pixels and red_pixels > green_pixels:
-            return "stop"
-        elif yellow_pixels > red_pixels and yellow_pixels > green_pixels:
-            return "slow"
-        elif green_pixels > red_pixels and green_pixels > yellow_pixels:
-            return "move"
-        else:
-            if self.status == "stop":
-                return "stop"
-            else:
-                return "move"
+        if circles is not None:
+            circles = np.round(circles[0, :]).astype("int")
+            for (x, y, r) in circles:
+                cv2.circle(mask, (x, y), r, 255, 2)
+        
+        color_counts = {color: cv2.countNonZero(cv2.bitwise_and(mask, cv2.inRange(hsv_img, lower, upper)))
+                        for color, (lower, upper) in self.color_ranges.items()}
 
-    def process_color(self, mask, color):
+        return max(color_counts, key=color_counts.get)
+
+
+
+    def process_color(self, mask):
         detected_output = cv2.bitwise_and(self.img, self.img, mask=mask)
         gray = cv2.cvtColor(detected_output, cv2.COLOR_BGR2GRAY)
         blur = cv2.medianBlur(gray, 5)
-        canny = cv2.Canny(blur, 75, 250)
-        return canny
+
+        # Detectar círculos usando la transformación de Hough
+        circles = cv2.HoughCircles(blur, cv2.HOUGH_GRADIENT, dp=1.2, minDist=30, param1=50, param2=30, minRadius=5, maxRadius=100)
+        
+        return circles
 
     def camera_callback(self, msg):
         try:
@@ -68,38 +68,47 @@ class TrafficLights(Node):
         except:
             self.get_logger().info('Failed to get an image')
 
-    def vel_cb(self,msg):
+    def vel_cb(self, msg):
         try:
             self.vel = msg
         except:
             self.get_logger().info('Failed to get velocity')
-
 
     def timer_callback(self):
         try:
             if self.valid_img:
                 hsvFrame = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
 
-                color_masks = {color: cv2.inRange(hsvFrame, lower, upper) for color, (lower, upper) in self.color_ranges.items()}
-                rgb = self.count_color(color_masks["stop"], color_masks["slow"], color_masks["move"])
+                # Detectar círculos en la imagen
+                circles = self.process_color(np.ones_like(hsvFrame[:,:,0], dtype=np.uint8) * 255)
+                rgb = self.count_color_in_circles(hsvFrame, circles)
 
-                if self.status.data == 'move':
+                if rgb == 'move':
                     self.pub_vel.publish(self.vel)
 
-                elif self.status.data == 'slow':
-                    self.vel.linear.x = self.vel.linear.x/2.0
-                    self.vel.angular.z = self.vel.angular.z/2.0 
+                elif rgb == 'slow':
+                    self.vel.linear.x = self.vel.linear.x / 2.0
+                    self.vel.angular.z = self.vel.angular.z / 2.0 
                     self.pub_vel.publish(self.vel)
                     self.vel.linear.x = self.vel.linear.x * 2.0
                     self.vel.angular.z = self.vel.angular.z * 2.0
 
-                else: pass
+                elif rgb == 'stop':
+                    # Detener el robot
+                    self.vel.linear.x = 0.0
+                    self.vel.angular.z = 0.0
+                    self.pub_vel.publish(self.vel)
 
-                canny = self.process_color(color_masks.get(rgb, None), rgb)
+                # Crear una máscara de los círculos detectados para visualización
+                circle_mask = np.zeros_like(hsvFrame[:,:,0])
+                if circles is not None:
+                    circles = np.round(circles[0, :]).astype("int")
+                    for (x, y, r) in circles:
+                        cv2.circle(circle_mask, (x, y), r, 255, -1)
 
                 self.status.data = rgb
                 self.pub_status.publish(self.status)
-                self.pub.publish(self.bridge.cv2_to_imgmsg(canny))
+                self.pub.publish(self.bridge.cv2_to_imgmsg(circle_mask))
                 self.valid_img = False
         except:
             self.get_logger().info('Failed to process image')
